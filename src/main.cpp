@@ -14,7 +14,7 @@ constexpr uint32_t ledDelay = 1000;
 uint8_t ledState = LOW;
 uint32_t lastLedTime = 0;
 
-uint32_t minLightLevel, maxLightLevel;
+uint32_t minLightLevel = 1 << 31, maxLightLevel;
 
 void setup() {
     Serial.begin(9600);
@@ -31,6 +31,8 @@ void setup() {
         uint16_t value = analogRead(analogReadPort);
         minLightLevel = min(minLightLevel, value);
         maxLightLevel = max(maxLightLevel, value);
+        Serial.println(minLightLevel);
+        Serial.println(maxLightLevel);
 
         delay(500);
         end = millis();
@@ -41,7 +43,6 @@ void setup() {
             digitalWrite(ledPin, ledState);
         }
     }
-
     // LED off to finish calibration
     digitalWrite(ledPin, LOW);
 }
