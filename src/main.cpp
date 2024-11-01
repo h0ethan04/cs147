@@ -52,7 +52,13 @@ void setup() {
 void loop() {
     uint8_t total = 0;
     uint8_t touched = cap.touched();
-    if (!touched) return;
+    if (!touched) {
+        tft.fillRect(0, 0, 80, 16, BG);
+        tft.setCursor(0, 65);
+        tft.print(0);
+        delay(50);
+        return;
+    }
 
     for (uint8_t i = 0; i < 8; i++) {
         if (touched & (1 << i)) ++total;
