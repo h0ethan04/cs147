@@ -1,1 +1,5 @@
-.pio
+node_modules
+yarn.lock
+config.env
+.env
+.vscode/
