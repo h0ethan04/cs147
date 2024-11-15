@@ -11,12 +11,43 @@
 
 #define LED 13
 
+#define calibration_steps 10
+
 LSM6DSO myIMU;
 BLEService *pService;
 bool in_step = false;
 long steps = 0;
 float down_step_accel;
 float up_step_accel;
+BLECharacteristic *pCharacteristic;
+
+
+void calibrate_threshold() {
+    Serial.println("Starting calibration...");
+    Serial.println("Take 10 steps to calibrate.");
+
+
+    delay(100);
+    down_step_accel = 0.85;
+
+    float maxUpAccel = -100.0;
+    float maxDownAccel = 100.0;
+    int stepsCounted = 0;
+
+    while (stepsCounted < calibration_steps) {
+       float accelZ = myIMU.readFloatAccelZ();
+       Serial.printf("calibrating z = %f\n", accelZ);
+
+       if (accelZ > maxUpAccel) maxUpAccel = accelZ;
+       if (accelZ < maxDownAccel) maxDownAccel = accelZ;
+
+       ++stepsCounted;
+       delay(1000);
+    }
+    up_step_accel = 1.1 * maxUpAccel;
+    down_step_accel = 0.9 * maxDownAccel;
+}
+
 
 // send data from esp32 to phone
 void setup() {
@@ -26,10 +57,11 @@ void setup() {
     BLEDevice::init("Ethan");
     BLEServer *pServer = BLEDevice::createServer();
     pService = pServer->createService(SERVICE_UUID);
-    BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+    pCharacteristic = pService->createCharacteristic(
         CHARACTERISTIC_UUID,
         BLECharacteristic::PROPERTY_READ |
-        BLECharacteristic::PROPERTY_WRITE
+        BLECharacteristic::PROPERTY_WRITE |
+        BLECharacteristic::PROPERTY_NOTIFY
     );
     pCharacteristic->setValue("Server Example - CS147"); //What gets transfered
     pService->start();
@@ -55,40 +87,40 @@ void setup() {
     if( myIMU.initialize(BASIC_SETTINGS) )
         Serial.println("Loaded Settings.");
 
-    // init down_step_accel and up_step_accel
-    down_step_accel = 0.85;
-    up_step_accel = 1.15;
+    delay(20000);
 
+
+    // init down_step_accel and up_step_accel
+    calibrate_threshold();
+
+    Serial.println("Calibration complete.");
+
+    // Serial.println(up_step_accel);
+    // Serial.println(down_step_accel);
+
+    delay(1000);
 }
 void loop() {
     //Get all parameters
-    Serial.print("\nAccelerometer:\n");
-    // Serial.print(" X = ");
-    // Serial.println(myIMU.readFloatAccelX(), 3);
-    // Serial.print(" Y = ");
-    // Serial.println(myIMU.readFloatAccelY(), 3);
-    Serial.print(" Z = ");
-    float accelZ = myIMU.readFloatAccelZ();
-    Serial.println(accelZ, 3);
+    float accelZ = 0;
+    for (int i = 0; i < 10; i++) {
+        accelZ += myIMU.readFloatAccelZ();
+        delay(5);
+    }
+    accelZ /= 10;
+    // Serial.println(accelZ, 3);
     if (in_step && accelZ < down_step_accel) {
-        // pService->getCharacteristic(CHARACTERISTIC_UUID)->setValue(String(myIMU.readFloatAccelZ()).c_str());
+        ++steps;
+        pCharacteristic->setValue(String(steps).c_str());
         in_step = false;
-        steps++;
-        Serial.println("Step down");
+        // Serial.println("Step Up");
+        pCharacteristic->notify();
     } else if (!in_step && accelZ > up_step_accel) {
         in_step = true;
-        Serial.println("Step up");
-        // pService->getCharacteristic(CHARACTERISTIC_UUID)->setValue(String(myIMU.readFloatAccelZ()).c_str());
+        // Serial.println("Step Down");
     }    
-    // Serial.print("\nGyroscope:\n");
-    // Serial.print(" X = ");
-    // Serial.println(myIMU.readFloatGyroX(), 3);
-    // Serial.print(" Y = ");
-    // Serial.println(myIMU.readFloatGyroY(), 3);
-    // Serial.print(" Z = ");
-    // Serial.println(myIMU.readFloatGyroZ(), 3);
 
-    delay(500);
+    delay(200);
 }
 
 
