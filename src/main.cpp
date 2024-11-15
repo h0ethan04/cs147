@@ -105,7 +105,7 @@ void loop() {
     float accelZ = 0;
     for (int i = 0; i < 10; i++) {
         accelZ += myIMU.readFloatAccelZ();
-        delay(5);
+        delay(10);
     }
     accelZ /= 10;
     // Serial.println(accelZ, 3);
@@ -141,7 +141,7 @@ void loop() {
 //             Serial.println("*********");
 //             Serial.print("New value: ");
 //             for (int i = 0; i < value.length(); i++)
-//             Serial.print(value[i]);
+//                 Serial.print(value[i]);
 //             Serial.println();
 //             Serial.println("*********");
 //         }
