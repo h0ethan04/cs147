@@ -3,3 +3,6 @@ yarn.lock
 config.env
 .env
 .vscode/
+.pio
+dist/
+.aws-sam/

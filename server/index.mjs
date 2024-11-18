@@ -18,6 +18,8 @@ app.use((err, _req, res, next) => {
 	res.status(500).send("An unexpected server error occurred.");
 })
 
-app.listen(PORT, () => {
-	console.log(`Server listening on port: ${PORT}`);
-});
+// app.listen(PORT, () => {
+// 	console.log(`Server listening on port: ${PORT}`);
+// });
+
+export const handler = serverless(app);

@@ -9,4 +9,10 @@ router.get('/', async (_req, res) => {
   res.send(tempReadings).status(200);
 });
 
+router.post('/', async (req, res) => {
+  const tempReading = req.body;
+  await db.collection('temp_readings').insertOne({tempReading: tempReading, date: new Date()});
+  res.send(tempReading).status(201);
+});
+
 export default router;
