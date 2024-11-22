@@ -19,29 +19,16 @@ constexpr uint32_t DHTTYPE = DHT22;
 
 DHT dht(DHTPIN, DHTTYPE);
 
-
-// This example downloads the URL "http://arduino.cc/"
 char ssid[50]; // your network SSID (name)
-char pass[50]; // your network password (use for WPA, or use
-               // as key for WEP)
+char pass[50]; // your network password (use for WPA, or use as key for WEP)
 
-const char server[] = "awsipaddr";
-const uint32_t port = 0;
-const char path[] = "something";
+const char server[] = "54.193.41.85";
+const uint32_t port = 5000;
+const char path[] = "/dev/data";
 
 WifiClient c;
 HttpClient http(c, server, port);
 
-// Name of the server we want to connect to
-// const char kHostname[] = "worldtimeapi.org";
-// Path to download (this is the bit after the hostname in the URL
-// that you want to download
-// const char kPath[] = "/api/timezone/Europe/London.txt";
-
-// Number of milliseconds to wait without receiving any data before we give up
-// const int kNetworkTimeout = 30 * 1000;
-// Number of milliseconds to wait if no data is available before trying again
-// const int kNetworkDelay = 1000;
 
 void nvs_access() {
     // Initialize NVS
