@@ -4,5 +4,6 @@ config.env
 .env
 .vscode/
 .pio
-dist/
+dist
 .aws-sam/
+team100.pem

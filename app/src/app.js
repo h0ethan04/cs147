@@ -6,13 +6,17 @@ async function loadData() {
     try {
         const response = await fetch(apiUrl);
         const data = await response.json();
+        console.log(data);
 
         const table = document.getElementById('data-table-body');
         data.forEach(item => {
             const row = document.createElement('tr');
-            const cell = document.createElement('td');
-            cell.textContent = item;
-            row.appendChild(cell);
+            const timeCell = document.createElement('td');
+            timeCell.textContent = item.time;
+            const tempCell = document.createElement('td');
+            tempCell.textContent = item.temp;
+            row.append(timeCell);
+            row.appendChild(tempCell);
             table.appendChild(row);
         });
     } catch (error) {
