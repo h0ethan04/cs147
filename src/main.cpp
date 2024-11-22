@@ -15,7 +15,7 @@
 
 
 constexpr int DHTPIN = 0;
-constexpr int DHTTYPE = 0;
+constexpr int DHTTYPE = DHT22;
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -25,16 +25,19 @@ char ssid[50]; // your network SSID (name)
 char pass[50]; // your network password (use for WPA, or use
                // as key for WEP)
 
+const char server[] = "awsipaddr";
+const int port = 0;
+
 // Name of the server we want to connect to
-const char kHostname[] = "worldtimeapi.org";
+// const char kHostname[] = "worldtimeapi.org";
 // Path to download (this is the bit after the hostname in the URL
 // that you want to download
-const char kPath[] = "/api/timezone/Europe/London.txt";
+// const char kPath[] = "/api/timezone/Europe/London.txt";
 
 // Number of milliseconds to wait without receiving any data before we give up
-const int kNetworkTimeout = 30 * 1000;
+// const int kNetworkTimeout = 30 * 1000;
 // Number of milliseconds to wait if no data is available before trying again
-const int kNetworkDelay = 1000;
+// const int kNetworkDelay = 1000;
 
 void nvs_access() {
     // Initialize NVS
@@ -65,8 +68,8 @@ void nvs_access() {
 	switch (err) {
 	case ESP_OK:
 	    Serial.printf("Done\n");
-	    //Serial.printf("SSID = %s\n", ssid);
-	    //Serial.printf("PASSWD = %s\n", pass);
+	    Serial.printf("SSID = %s\n", ssid);
+	    Serial.printf("PASSWD = %s\n", pass);
 	    break;
 	case ESP_ERR_NVS_NOT_FOUND:
 	    Serial.printf("The value is not initialized yet!\n");
@@ -83,30 +86,30 @@ void nvs_access() {
 void setup() {
     Serial.begin(9600);
 
-    // delay(1000);
-    // // Retrieve SSID/PASSWD from flash before anything else
-    // nvs_access();
-    // 
-    // // We start by connecting to a WiFi network
-    // delay(1000);
-    // Serial.println();
-    // Serial.println();
-    // Serial.print("Connecting to ");
-    // Serial.println(ssid);
-    // 
-    // WiFi.begin(ssid, pass);
-    // 
-    // while (WiFi.status() != WL_CONNECTED) {
-    // 	delay(500);
-    // 	Serial.print(".");
-    // }
-    // 
-    // Serial.println("");
-    // Serial.println("WiFi connected");
-    // Serial.println("IP address: ");
-    // Serial.println(WiFi.localIP());
-    // Serial.println("MAC address: ");
-    // Serial.println(WiFi.macAddress());
+    delay(1000);
+    // Retrieve SSID/PASSWD from flash before anything else
+    nvs_access();
+    
+    // We start by connecting to a WiFi network
+    delay(1000);
+    Serial.println();
+    Serial.println();
+    Serial.print("Connecting to ");
+    Serial.println(ssid);
+    
+    WiFi.begin(ssid, pass);
+    
+    while (WiFi.status() != WL_CONNECTED) {
+    	delay(500);
+    	Serial.print(".");
+    }
+    
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+    Serial.println("MAC address: ");
+    Serial.println(WiFi.macAddress());
 
     dht.begin();
 }
@@ -117,10 +120,8 @@ void loop() {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     float h = dht.readHumidity();
-    // Read temperature as Celsius (the default)
-    float t = dht.readTemperature();
-    // Read temperature as Fahrenheit (isFahrenheit = true)
-    float f = dht.readTemperature(true);
+    float t = dht.readTemperature();     // Read temperature as Celsius (the default)
+    float f = dht.readTemperature(true); // Read temperature as Fahrenheit (isFahrenheit = true)
 
     // Check if any reads failed and exit early (to try again).
     if (isnan(h) || isnan(t) || isnan(f)) {
@@ -128,10 +129,8 @@ void loop() {
 	return;
     }
 
-    // Compute heat index in Fahrenheit (the default)
-    float hif = dht.computeHeatIndex(f, h);
-    // Compute heat index in Celsius (isFahreheit = false)
-    float hic = dht.computeHeatIndex(t, h, false);
+    float hif = dht.computeHeatIndex(f, h);        // Compute heat index in Fahrenheit (the default)
+    float hic = dht.computeHeatIndex(t, h, false); // Compute heat index in Celsius (isFahreheit = false)
 
     Serial.print(F("Humidity: "));
     Serial.print(h);
@@ -146,6 +145,8 @@ void loop() {
     Serial.println(F("°F"));
 
     // Modify code to send recorded data to the web server
+
+    // String s;
 
     // int err = 0;
     // 
