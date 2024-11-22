@@ -10,24 +10,20 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 
-#include "Adafruit_Sensor.h"
-#include "DHT.h"
+#include <Adafruit_AHTX0.h>
 
 
-constexpr uint32_t DHTPIN = 0;
-constexpr uint32_t DHTTYPE = DHT22;
-
-DHT dht(DHTPIN, DHTTYPE);
+Adafruit_AHTX0 aht;
 
 char ssid[50]; // your network SSID (name)
 char pass[50]; // your network password (use for WPA, or use as key for WEP)
 
 const char server[] = "54.193.41.85";
-const uint32_t port = 5000;
+const uint16_t port = 5000;
 const char path[] = "/dev/data";
 
-WifiClient c;
-HttpClient http(c, server, port);
+WiFiClient c;
+HttpClient http(c);
 
 
 void nvs_access() {
@@ -102,115 +98,55 @@ void setup() {
     Serial.println("MAC address: ");
     Serial.println(WiFi.macAddress());
 
-    dht.begin();
+    aht.begin();
 }
 
 void loop() {
-    delay(2000);
+    sensors_event_t humidity, temp;
+    aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
 
-    // Reading temperature or humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float h = dht.readHumidity();
-    float t = dht.readTemperature();     // Read temperature as Celsius (the default)
-    float f = dht.readTemperature(true); // Read temperature as Fahrenheit (isFahrenheit = true)
+    Serial.print("Temperature: ");
+    Serial.print(temp.temperature);
+    Serial.println(" degrees C");
+    
+    Serial.print("Humidity: ");
+    Serial.print(humidity.relative_humidity);
+    Serial.println("% rH");
 
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t) || isnan(f)) {
-	Serial.println(F("Failed to read from DHT sensor!"));
-	return;
-    }
-
-    float hif = dht.computeHeatIndex(f, h);        // Compute heat index in Fahrenheit (the default)
-    float hic = dht.computeHeatIndex(t, h, false); // Compute heat index in Celsius (isFahreheit = false)
+    Serial.print("\n");
 
     // Modified code to send recorded data to the web server
-    String payload = String("{\"temperature_c\":") + t +
-	",\"temperature_f\":" + f +
-	",\"humidity\":" + h + "}";
+    String payload = String("{\"temperature_c\":") + temp.temperature +
+	",\"humidity\":" + humidity.relative_humidity + "}";
 
-    // Set up headers
     http.beginRequest();
-    http.post(path);
+    int err = http.post(server, port, path);
     http.sendHeader("Content-Type", "application/json");
     http.sendHeader("Content-Length", payload.length());
-    http.beginBody();
-    http.print(payload);
+    http.write(reinterpret_cast<const uint8_t*>(payload.c_str()), payload.length());
     http.endRequest();
 
-    // Handle response
-    int statusCode = http.responseStatusCode();
-    String responseBody = http.responseBody();
+    if (err == 0) {
+    	Serial.println("Request sent successfully.");
+    
+    	int statusCode = http.responseStatusCode();
+     	Serial.print("Response status code: ");
+     	Serial.println(statusCode);
+    
+    	// Read the response body
+    	while (http.available()) {
+    	    char c = http.read();
+    	    Serial.print(c);
+    	}
+    
+    } else {
+    	Serial.print("Error sending request: ");
+    	Serial.println(err);
+    }
 
-    Serial.print("Status Code: ");
-    Serial.println(statusCode);
-    Serial.print("Response: ");
-    Serial.println(responseBody);
+    Serial.print("\n");
 
-    http.stop()
+    http.stop();
     delay(5000);
-
-    // int err = 0;
-    // 
-    // WiFiClient c;
-    // HttpClient http(c);
-    // 
-    // err = http.get(kHostname, kPath);
-    // if (err == 0) {
-    // 	Serial.println("startedRequest ok");
-    // 
-    // 	err = http.responseStatusCode();
-    // 	if (err >= 0) {
-    // 	    Serial.print("Got status code: ");
-    // 	    Serial.println(err);
-    // 
-    // 	    // Usually you'd check that the response code is 200 or a
-    // 	    // similar "success" code (200-299) before carrying on,
-    // 	    // but we'll print out whatever response we get
-    // 
-    // 	    err = http.skipResponseHeaders();
-    // 	    if (err >= 0) {
-    // 		int bodyLen = http.contentLength();
-    // 		Serial.print("Content length is: ");
-    // 		serial.println(bodyLen);
-    // 		Serial.println();
-    // 		Serial.println("Body returned follows:");
-    // 
-    // 		// Now we've got to the body, so we can print it out
-    // 		unsigned long timeoutStart = millis();
-    // 		char c;
-    // 		// Whilst we haven't timed out & haven't reached the end of the body
-    // 		while ((http.connected() || http.available()) &&
-    // 		       ((millis() - timeoutStart) < kNetworkTimeout)) {
-    // 		    if (http.available()) {
-    // 			c = http.read();
-    // 			// Print out this character
-    // 			Serial.print(c);
-    // 
-    // 			bodyLen--;
-    // 			// We read something, reset the timeout counter
-    // 			timeoutStart = millis();
-    // 		    } else {
-    // 			// We haven't got any data, so let's pause to allow some to
-    // 			// arrive
-    // 			delay(kNetworkDelay);
-    // 		    }
-    // 		}
-    // 	    } else {
-    // 		Serial.print("Failed to skip response headers: ");
-    // 		Serial.println(err);
-    // 	    }
-    // 	} else {
-    // 	    Serial.print("Getting response failed: ");
-    // 	    Serial.println(err);
-    // 	}
-    // } else {
-    // 	Serial.print("Connect failed: ");
-    // 	Serial.println(err);
-    // }
-    // http.stop();
-    // 
-    // // And just stop, now that we've tried a download
-    // while (1)
-    // 	;  // Wait a few seconds between measurements.
 
 }
