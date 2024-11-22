@@ -14,8 +14,8 @@
 #include "DHT.h"
 
 
-constexpr int DHTPIN = 0;
-constexpr int DHTTYPE = DHT22;
+constexpr uint32_t DHTPIN = 0;
+constexpr uint32_t DHTTYPE = DHT22;
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -26,7 +26,11 @@ char pass[50]; // your network password (use for WPA, or use
                // as key for WEP)
 
 const char server[] = "awsipaddr";
-const int port = 0;
+const uint32_t port = 0;
+const char path[] = "something";
+
+WifiClient c;
+HttpClient http(c, server, port);
 
 // Name of the server we want to connect to
 // const char kHostname[] = "worldtimeapi.org";
@@ -132,21 +136,31 @@ void loop() {
     float hif = dht.computeHeatIndex(f, h);        // Compute heat index in Fahrenheit (the default)
     float hic = dht.computeHeatIndex(t, h, false); // Compute heat index in Celsius (isFahreheit = false)
 
-    Serial.print(F("Humidity: "));
-    Serial.print(h);
-    Serial.print(F("%  Temperature: "));
-    Serial.print(t);
-    Serial.print(F("°C "));
-    Serial.print(f);
-    Serial.print(F("°F  Heat index: "));
-    Serial.print(hic);
-    Serial.print(F("°C "));
-    Serial.print(hif);
-    Serial.println(F("°F"));
+    // Modified code to send recorded data to the web server
+    String payload = String("{\"temperature_c\":") + t +
+	",\"temperature_f\":" + f +
+	",\"humidity\":" + h + "}";
 
-    // Modify code to send recorded data to the web server
+    // Set up headers
+    http.beginRequest();
+    http.post(path);
+    http.sendHeader("Content-Type", "application/json");
+    http.sendHeader("Content-Length", payload.length());
+    http.beginBody();
+    http.print(payload);
+    http.endRequest();
 
-    // String s;
+    // Handle response
+    int statusCode = http.responseStatusCode();
+    String responseBody = http.responseBody();
+
+    Serial.print("Status Code: ");
+    Serial.println(statusCode);
+    Serial.print("Response: ");
+    Serial.println(responseBody);
+
+    http.stop()
+    delay(5000);
 
     // int err = 0;
     // 
