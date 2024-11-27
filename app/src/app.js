@@ -35,6 +35,8 @@ async function loadData() {
     }
 }
 
+loadData();
+
 newPlot('graph', [{
     x: dates,
     y: temps,
@@ -46,6 +48,3 @@ newPlot('graph2', [{
     y: gases,
     type: 'scatter'
 }]);
-
-loadData();
-
