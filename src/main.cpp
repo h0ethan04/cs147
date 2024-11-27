@@ -1,6 +1,7 @@
 #include <Arduino.h>
-#include <HttpClient.h>
+#include <HTTPClient.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <inttypes.h>
 #include <stdio.h>
 
@@ -20,12 +21,11 @@ Adafruit_SGP30 sgp;
 char ssid[50]; // your network SSID (name)
 char pass[50]; // your network password (use for WPA, or use as key for WEP)
 
-const char server[] = "seg8lvbr1e.execute-api.us-west-1.amazonaws.com";
-const uint16_t port = 80;
-const char path[] = "/Prod/temp-readings/";
+String url = "https://seg8lvbr1e.execute-api.us-west-1.amazonaws.com/Prod/temp-readings/";
 
-WiFiClient c;
-HttpClient http(c);
+// WiFiClient c;
+WiFiClientSecure c;
+HTTPClient http;
 
 
 void nvs_access() {
@@ -78,8 +78,6 @@ void setup() {
     delay(1000);
     Serial.println("\n");
 
-
-    Serial.begin(9600);
     Wire.begin();
     for (byte i = 8; i < 120; i++) {
       Wire.beginTransmission(i);
@@ -129,6 +127,8 @@ void setup() {
 		while (1);
 	}
 	Serial.println("SGP30 initialized!");
+
+    c.setInsecure();
 }
 
 void loop() {
@@ -138,10 +138,6 @@ void loop() {
     Serial.print("Temperature: ");
     Serial.print(temp.temperature);
     Serial.println(" degrees C");
-    
-    // Serial.print("Humidity: ");
-    // Serial.print(humidity.relative_humidity);
-    // Serial.println("% rH");
 
     Serial.print("\n");
 
@@ -158,34 +154,40 @@ void loop() {
     String payload = String("{\"tempReading\":") + temp.temperature +
 	",\"gasReading\":" + sgp.TVOC + "}";
 
-    http.beginRequest();
-    int err = http.post(server, port, path);
-    http.sendHeader("Content-Type", "application/json");
-    http.sendHeader("Content-Length", payload.length());
-    http.write(reinterpret_cast<const uint8_t*>(payload.c_str()), payload.length());
-    http.endRequest();
 
-    if (err == 0) {
-    	Serial.println("Request sent successfully.");
-    
-    	int statusCode = http.responseStatusCode();
-     	Serial.print("Response status code: ");
-     	Serial.println(statusCode);
-    
-    	// Read the response body
-    	while (http.available()) {
-    	    char c = http.read();
-    	    Serial.print(c);
-    	}
-    
+    http.begin(c, url);
+    http.addHeader("Content-Type", "application/json");
+    int httpCode = http.POST(payload);
+
+    if (httpCode > 0) {
+        Serial.printf("HTTP Response code: %d\n", httpCode);
+        
+        // Handle redirect (307)
+        if (httpCode == 307) {
+            String newUrl = http.header("Location");
+            Serial.printf("Redirecting to: %s\n", newUrl.c_str());
+            
+            // Close first connection
+            http.end();
+            
+            // Follow redirect
+            http.begin(c, newUrl);
+            http.addHeader("Content-Type", "application/json");
+            httpCode = http.POST(payload);
+            
+            if (httpCode > 0) {
+                Serial.printf("Redirect response code: %d\n", httpCode);
+                Serial.println("Response: " + http.getString());
+            }
+        } else {
+            Serial.println("Response: " + http.getString());
+        }
     } else {
-    	Serial.print("Error sending request: ");
-    	Serial.println(err);
+        Serial.printf("HTTP Request failed, error: %s\n", http.errorToString(httpCode).c_str());
     }
 
     Serial.print("\n");
-
-    http.stop();
-    delay(5000);
+    http.end();
+    delay(10000);
 
 }
