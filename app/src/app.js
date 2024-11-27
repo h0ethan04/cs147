@@ -6,7 +6,37 @@ let dates = [];
 let temps = [];
 let gases = [];
 
-async function loadData() {
+
+const plotGraphs = () => {
+    // Temperature graph
+    newPlot('graph', [{
+        x: dates,
+        y: temps,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'Temperature'
+    }], {
+        title: 'Temperature Over Time',
+        xaxis: { title: 'Date' },
+        yaxis: { title: 'Temperature (°C)' }
+    });
+
+    // Gas graph
+    newPlot('graph2', [{
+        x: dates,
+        y: gases,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'Gas Levels'
+    }], {
+        title: 'Gas Levels Over Time',
+        xaxis: { title: 'Date' },
+        yaxis: { title: 'Gas Levels (ppm)' }
+    });
+}
+
+
+const loadData = async () => {
     try {
         const response = await fetch(apiUrl);
         const data = await response.json();
@@ -30,21 +60,10 @@ async function loadData() {
             table.appendChild(row);
 
         });
+        plotGraphs();
     } catch (error) {
         console.error('Error fetching data:', error);
     }
 }
 
 loadData();
-
-newPlot('graph', [{
-    x: dates,
-    y: temps,
-    type: 'scatter'
-}]);
-
-newPlot('graph2', [{
-    x: dates,
-    y: gases,
-    type: 'scatter'
-}]);
