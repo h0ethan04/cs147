@@ -14,12 +14,12 @@ async function loadData() {
 
         const table = document.getElementById('data-table-body');
         data.forEach(item => {
-            dates.push(item.time);
+            dates.push(item.date);
             temps.push(item.tempReading);
             gases.push(item.gasReading);
             const row = document.createElement('tr');
             const timeCell = document.createElement('td');
-            timeCell.textContent = item.time;
+            timeCell.textContent = item.date;
             const tempCell = document.createElement('td');
             tempCell.textContent = item.tempReading;
             const gasCell = document.createElement('td');
