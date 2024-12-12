@@ -43,6 +43,7 @@ const loadData = async () => {
         console.log(data);
 
         const table = document.getElementById('data-table-body');
+        const dangerTable = document.getElementById('danger-table-body');
         data.forEach(item => {
             dates.push(item.date);
             temps.push(item.tempReading);
@@ -59,6 +60,7 @@ const loadData = async () => {
             row.appendChild(gasCell);
             table.appendChild(row);
 
+            if (item.tempReading > 10 || item.gasReading > 200) dangerTable.appendChild(row);
         });
         plotGraphs();
     } catch (error) {
