@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Servo.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -15,6 +16,14 @@
 #include <Adafruit_SGP30.h>
 #include <Wire.h>
 
+constexpr int LED_PIN = 15;
+constexpr int BUZZER_PIN = 17;
+constexpr int SERVO_PIN = 25;
+
+constexpr int TEMP_THRESHOLD = 10;
+constexpr int TVOC_THRESHOLD = 100;
+
+Servo servo;
 Adafruit_AHTX0 aht;
 Adafruit_SGP30 sgp;
 
@@ -27,6 +36,9 @@ String url = "https://seg8lvbr1e.execute-api.us-west-1.amazonaws.com/Prod/temp-r
 WiFiClientSecure c;
 HTTPClient http;
 
+// Time tracker for constant beeping and lights
+unsigned long timer;
+bool unsafe_readings = false;
 
 void nvs_access() {
     // Initialize NVS
@@ -129,65 +141,99 @@ void setup() {
 	Serial.println("SGP30 initialized!");
 
     c.setInsecure();
+
+    timer = millis();
+
+
+    // Set Pin Modes for Speaker and for LED
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(BUZZER_PIN, OUTPUT);
+
+    // attach servo
+    servo.attach(SERVO_PIN);
+    servo.write(0);
 }
 
 void loop() {
-    sensors_event_t humidity, temp;
-    aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
 
-    Serial.print("Temperature: ");
-    Serial.print(temp.temperature);
-    Serial.println(" degrees C");
+    // if the timer hasn't been exhausted then don't get a new reading (but still toggle the light)
+    if (millis() - timer < 5000) {
+        if (unsafe_readings) {
+            tone(BUZZER_PIN, 1000, 500);
+            delay(150);
+            digitalWrite(LED_PIN, HIGH);
+            delay(150);
+            servo.write(180);
+            delay(150);
+            servo.write(0);
+            delay(150);
+            digitalWrite(LED_PIN, LOW);
+        }
+    } else {
+        unsafe_readings = false;
 
-    Serial.print("\n");
+        sensors_event_t humidity, temp;
+        aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
 
-    if (!sgp.IAQmeasure()) {
-      Serial.println("Measurement failed!");
-      return;
-    }
-    Serial.print("TVOC: ");
-    Serial.print(sgp.TVOC);
-    Serial.println(" ppb");
-	
+        Serial.print("Temperature: ");
+        Serial.print(temp.temperature);
+        Serial.println(" degrees C");
 
-    // Modified code to send recorded data to the web server
-    String payload = String("{\"tempReading\":") + temp.temperature +
-	",\"gasReading\":" + sgp.TVOC + "}";
+        Serial.print("\n");
 
-
-    http.begin(c, url);
-    http.addHeader("Content-Type", "application/json");
-    int httpCode = http.POST(payload);
-
-    if (httpCode > 0) {
-        Serial.printf("HTTP Response code: %d\n", httpCode);
+        if (!sgp.IAQmeasure()) {
+        Serial.println("Measurement failed!");
+        return;
+        }
+        Serial.print("TVOC: ");
+        Serial.print(sgp.TVOC);
+        Serial.println(" ppb");
         
-        // Handle redirect (307)
-        if (httpCode == 307) {
-            String newUrl = http.header("Location");
-            Serial.printf("Redirecting to: %s\n", newUrl.c_str());
+        // trigger the buzzer and light if outside healthy range
+        
+        if (temp.temperature > TEMP_THRESHOLD || sgp.TVOC > TVOC_THRESHOLD) unsafe_readings = true;
+
+
+        // Modified code to send recorded data to the web server
+        String payload = String("{\"tempReading\":") + temp.temperature +
+        ",\"gasReading\":" + sgp.TVOC + "}";
+
+
+        http.begin(c, url);
+        http.addHeader("Content-Type", "application/json");
+        int httpCode = http.POST(payload);
+
+        if (httpCode > 0) {
+            Serial.printf("HTTP Response code: %d\n", httpCode);
             
-            // Close first connection
-            http.end();
-            
-            // Follow redirect
-            http.begin(c, newUrl);
-            http.addHeader("Content-Type", "application/json");
-            httpCode = http.POST(payload);
-            
-            if (httpCode > 0) {
-                Serial.printf("Redirect response code: %d\n", httpCode);
+            // Handle redirect (307)
+            if (httpCode == 307) {
+                String newUrl = http.header("Location");
+                Serial.printf("Redirecting to: %s\n", newUrl.c_str());
+                
+                // Close first connection
+                http.end();
+                
+                // Follow redirect
+                http.begin(c, newUrl);
+                http.addHeader("Content-Type", "application/json");
+                httpCode = http.POST(payload);
+                
+                if (httpCode > 0) {
+                    Serial.printf("Redirect response code: %d\n", httpCode);
+                    Serial.println("Response: " + http.getString());
+                }
+            } else {
                 Serial.println("Response: " + http.getString());
             }
         } else {
-            Serial.println("Response: " + http.getString());
+            Serial.printf("HTTP Request failed, error: %s\n", http.errorToString(httpCode).c_str());
         }
-    } else {
-        Serial.printf("HTTP Request failed, error: %s\n", http.errorToString(httpCode).c_str());
-    }
 
-    Serial.print("\n");
-    http.end();
-    delay(10000);
+        Serial.print("\n");
+        http.end();
+        
+        timer = millis();
+    }
 
 }
